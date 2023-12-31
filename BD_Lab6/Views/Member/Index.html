@@ -1,0 +1,296 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>List of Members</title>
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.0/css/bootstrap.min.css" rel="stylesheet" />
+</head>
+<body>
+    <h2>List of Members</h2>
+    <form name="memberForm">
+        <input type="hidden" name="id" value="0" />
+        <div class="form-group col-md-5">
+            <label for="Name">Name:</label>
+            <input class="form-control" name="Name" />
+            <span class="error-message" id="name-error"></span>
+        </div>
+        <div class="form-group col-md-5">
+            <label for="Surname">Surname:</label>
+            <input class="form-control" name="Surname" type="text" />
+            <span class="error-message" id="name-error"></span>
+        </div>
+        <div class="form-group col-md-5">
+            <label for="Birthday">Birthday:</label>
+            <input class="form-control" name="Birthday" type="date" />
+            <span class="error-message" id="name-error"></span>
+        </div>
+        <div class="form-group col-md-5">
+            <label for="FamilyId">FamilyId:</label>
+            <input class="form-control" name="FamilyId" type="number" />
+            <span class="error-message" id="name-error"></span>
+        </div>
+        <div class="panel-body">
+            <button type="submit" id="submit" class="btn btn-primary">Create</button>
+            <a href="#" id="reset" class="btn btn-primary">Reset</a>
+        </div>
+    </form>
+    <table class="table table-condensed table-striped col-md-6">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Surname</th>
+                <th>Birthday</th>
+                <th>FamilyId</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+    <div>2019 © Metanit.com</div>
+    <script>
+        // Получение всех пользователей
+        async function GetMembers() {
+            const response = await fetch("/api/member", {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.ok) {
+                const members = await response.json();
+                let rows = document.querySelector("tbody");
+                rows.innerHTML = "";
+
+                members.forEach(member => {
+                    rows.appendChild(row(member));
+                });
+            }
+        }
+
+
+        // Создание строки для таблицы
+        function row(member) {
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-rowid", member.id);
+
+            const idTd = document.createElement("td");
+            idTd.textContent = member.id;
+            tr.appendChild(idTd);
+
+            const nameTd = document.createElement("td");
+            nameTd.textContent = member.name;
+            tr.appendChild(nameTd);
+
+            const surnameTd = document.createElement("td");
+            surnameTd.textContent = member.surname;
+            tr.appendChild(surnameTd);
+
+            const birthdayTd = document.createElement("td");
+            birthdayTd.textContent = member.birthday;
+            tr.appendChild(birthdayTd);
+
+            const familyTd = document.createElement("td");
+            familyTd.textContent = member.familyId;
+            tr.appendChild(familyTd);
+
+            const actionsTd = document.createElement("td");
+            const editLink = document.createElement("a");
+            editLink.setAttribute("data-id", member.id);
+            editLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            editLink.textContent = "Update";
+            editLink.addEventListener("click", e => {
+                e.preventDefault();
+                GetMember(member.id);
+                //EditUser(member.id, member.name, member.surname, member.birthday, member.familyId);
+            });
+            actionsTd.appendChild(editLink);
+
+            const removeLink = document.createElement("a");
+            removeLink.setAttribute("data-id", member.id);
+            removeLink.setAttribute("style", "cursor:pointer;padding:15px;");
+            removeLink.textContent = "Delete";
+            removeLink.addEventListener("click", e => {
+                e.preventDefault();
+                DeleteUser(member.id);
+            });
+            actionsTd.appendChild(removeLink);
+
+            tr.appendChild(actionsTd);
+
+            return tr;
+        }
+
+        // Сброс значений формы
+        document.getElementById("reset").addEventListener("click", function (e) {
+            e.preventDefault();
+            reset();
+        });
+
+        function reset() {
+            const form = document.forms["memberForm"];
+            form.reset();
+            form.elements["id"].value = 0;
+        }
+
+        
+        function validateForm() {
+            const form = document.forms["memberForm"];
+            const name = form.elements["Name"].value;
+            
+
+            if (name.trim() === "") {
+                const errorSpan = document.getElementById("name-error");
+                errorSpan.textContent = "Please enter a name.";
+                return false;
+            }
+           
+
+            return true;
+        }
+
+        // Réinitialisation des messages d'erreur
+        function resetErrorMessages() {
+            const errorSpans = document.querySelectorAll(".error-message");
+            errorSpans.forEach(span => {
+                span.textContent = "";
+            });
+        }
+
+        
+        document.forms["memberForm"].addEventListener("submit", async function (e) {
+            e.preventDefault();
+            resetErrorMessages(); 
+
+            if (validateForm()) {
+                const form = document.forms["memberForm"];
+                const id = form.elements["id"].value;
+                const name = form.elements["Name"].value;
+                
+
+                if (id === "0" || id === "") {
+                    await CreateMember(name);
+                } else {
+                    // Logique pour l'édition d'un membre existant
+                }
+            }
+        });
+
+
+        // API handler in case an error occurs
+        async function handleAPIError(response) {
+            const errorData = await response.json();
+            if (response.status === 400 && errorData.errors) {
+                const form = document.forms["memberForm"];
+                for (const field in errorData.errors) {
+                    const errorMessage = errorData.errors[field].join(", ");
+                    const errorSpan = document.getElementById(`${field.toLowerCase()}-error`);
+                    if (errorSpan) {
+                        errorSpan.textContent = errorMessage;
+                    }
+                }
+            } else {
+                console.error("Error of the communication with the API :", errorData);
+            }
+        }
+
+
+        // Création d'un nouveau membre
+        async function CreateMember(name, surname, birthday, familyId) {
+            const response = await fetch("/api/member", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ name, surname, birthday, familyId })
+            });
+
+            if (response.ok)
+            {
+                
+                GetMembers(); // Rafraîchir la liste des membres après la création
+            }
+            else
+            {
+                console.error("Failed to create member");
+            }
+        }
+
+        // Obtention d'un membre spécifique par son ID
+        async function GetMember(id) {
+            const response = await fetch("/api/member/" + id, {
+                method: "GET",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.ok) {
+                const member = await response.json();
+                const form = document.forms["memberForm"];
+                form.elements["id"].value = member.id;
+                form.elements["Name"].value = member.name;
+                form.elements["Surname"].value = member.surname;
+                form.elements["Birthday"].value = member.birthday;
+                form.elements["FamilyId"].value = member.familyId;
+            }
+        }
+
+        // Mise à jour d'un membre existant
+        async function EditUser(id, name, surname, birthday, familyId) {
+            const response = await fetch("/api/member/" + id, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ name, surname, birthday, familyId })
+            });
+
+            if (response.ok)
+            {
+                GetMembers(); // Rafraîchir la liste des membres après la modification
+            }
+            else
+            {
+                console.error("Failed to edit member");
+            }
+        }
+
+        // Suppression d'un membre par son ID
+        async function DeleteUser(id) {
+            const response = await fetch("/api/member/" + id, {
+                method: "DELETE",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.ok) {
+                document.querySelector(`tr[data-rowid='${id}']`).remove(); // Supprimer la ligne correspondante dans le tableau
+            } else {
+                console.error("Failed to delete member");
+            }
+        }
+
+        // ...
+
+        // Écouteur d'événement pour le formulaire lors de la soumission pour la création ou la modification d'un membre
+        document.forms["memberForm"].addEventListener("submit", async function (e) {
+            e.preventDefault();
+            const form = document.forms["memberForm"];
+            const id = form.elements["id"].value;
+            const name = form.elements["Name"].value;
+            const surname = form.elements["Surname"].value;
+            const birthday = form.elements["Birthday"].value;
+            const familyId = form.elements["FamilyId"].value;
+
+            if (id == 0) {
+                await CreateMember(name, surname, birthday, familyId);
+            } else {
+                await EditUser(id, name, surname, birthday, familyId);
+            }
+        });
+        // ...
+
+        GetMembers();
+
+    </script>
+</body>
+</html>
